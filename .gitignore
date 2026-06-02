@@ -14,6 +14,9 @@ backend/*.db
 backend/*.db-shm
 backend/*.db-wal
 
+# Logs
+backend/*.log
+
 # Secrets
 .env
 backend/.env

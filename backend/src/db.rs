@@ -23,7 +23,8 @@ impl Db {
                data        TEXT NOT NULL,
                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
                PRIMARY KEY (character, slug)
-             );",
+             );
+",
         )?;
         Ok(Db(Mutex::new(conn)))
     }

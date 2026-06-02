@@ -13,7 +13,7 @@ over time.
 
 ## User Flow
 
-1. User types a search query — either pinyin (e.g. `guo`) or a character (e.g. `過`)
+1. User types a pinyin query (e.g. `guo`)
 2. A dropdown appears with matching sense candidates, each showing character + pinyin + short sense label (e.g. "to pass", "experience marker", "to celebrate")
 3. User selects a candidate sense
 4. App navigates to a dedicated word detail page at a clean URL (e.g. `/guo/to-celebrate`)
@@ -52,17 +52,18 @@ from the already-stored Tier 1 sense label, ensuring stability and cache hit con
 ## Caching — Two-Tier Architecture
 
 ### Tier 1 — Search Cache
-**Populated:** on first search for a character or pinyin  
-**Cache key:** the character (e.g. `過`)  
-**Stores:** all sense candidates for that character — each row is `(character, pinyin, sense_label)`
 
-When a user searches `guo` or `過`, the backend checks the Tier 1 cache first.
-On a miss, it calls the LLM to enumerate all distinct senses, stores each as a row,
-and returns them. On a hit, it returns the cached rows directly with no LLM call.
+**Pinyin query** (e.g. `guo`)
+- Cache key: the normalized pinyin base (tone marks stripped, spaces removed)
+- A cache hit is determined by the presence of any rows in `senses` whose normalized pinyin
+  matches the query. An empty result means the pinyin has never been searched.
+- On miss: LLM returns all characters across all tones sharing that syllable; candidates
+  whose pinyin (stripped) does not exactly match the query are discarded server-side before
+  storing; results are returned from the DB (not the raw LLM response) to ensure slugs are
+  consistent with stored primary keys.
 
-Searching by pinyin may match multiple characters (e.g. `guo` matches 過, 鍋, 國).
-All matching characters are returned. Tier 1 rows are always stored and keyed by
-character so pinyin lookups reuse the same rows.
+A query for `guo` may match multiple characters (e.g. 過, 鍋, 國).
+All matching characters are returned as separate candidates.
 
 ### Tier 2 — Definition Cache
 **Populated:** when a user first clicks through to a definition page  
@@ -138,16 +139,18 @@ returns list of candidates: `[{ character, pinyin, sense_label, slug }]`.
 
 **Word detail**
 ```
-GET /api/word/{character}/{slug}
+GET /api/word/{pinyin}/{slug}
 ```
-Checks Tier 2 cache first. On miss, calls LLM with character + sense_label context,
-stores result, returns full structured JSON.
+Resolves the character from the `senses` table using `(pinyin_base, slug)` — no extra
+LLM call. Then checks Tier 2 cache. On miss, calls LLM with character + sense_label
+context, stores result, returns full structured JSON.
 
 **Regenerate**
 ```
-POST /api/word/{character}/{slug}/regenerate
+POST /api/word/{pinyin}/{slug}/regenerate
 ```
-Deletes the Tier 2 cache entry and re-generates it. Returns the fresh JSON.
+Resolves the character the same way, deletes the Tier 2 cache entry, re-generates it,
+and returns the fresh JSON.
 
 ### SQLite Schema
 
@@ -187,10 +190,10 @@ CREATE TABLE definitions (
 
 ### Pages / Routes
 - `/` — Search home
-- `/word/:pinyin/:slug` — Word detail page
+- `/word/:pinyin/:slug` — Word detail page (pinyin matches backend API; character is resolved server-side from the senses table)
 
 ### Search Component
-- Single text input (pinyin or character)
+- Single text input (pinyin only — ASCII letters and spaces)
 - Dropdown of sense candidates appears as user types (debounced)
 - Each candidate shows: character + pinyin + sense label
 - Selecting a candidate navigates to its detail page

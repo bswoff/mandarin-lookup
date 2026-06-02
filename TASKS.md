@@ -9,23 +9,23 @@ finish them. Do not skip ahead — each phase builds on the last.
 
 ## Phase 1 — Project setup (~1 session)
 
-- [ ] Scaffold Rust backend as a Cargo workspace with axum
-- [ ] Scaffold React frontend with Vite + TypeScript + React Router
-- [ ] Configure CORS on the backend so the frontend can call it on localhost
-- [ ] Confirm the connection: a `/api/health` route returns 200 and the frontend can fetch it
-- [ ] Create the SQLite file and run initial migrations for the `senses` and `definitions` tables (schema in SPEC.md)
+- [x] Scaffold Rust backend as a Cargo workspace with axum
+- [x] Scaffold React frontend with Vite + TypeScript + React Router
+- [x] Configure CORS on the backend so the frontend can call it on localhost
+- [x] Confirm the connection: a `/api/health` route returns 200 and the frontend can fetch it
+- [x] Create the SQLite file and run initial migrations for the `senses` and `definitions` tables (schema in SPEC.md)
 
 ---
 
 ## Phase 2 — Search + Tier 1 cache (~2 sessions)
 
-- [ ] Write the Tier 1 LLM prompt: given a character or pinyin, return a JSON array of all distinct senses, each with `character`, `pinyin`, `sense_label`, and `slug` (slug = first 1–2 words of sense_label, lowercased, hyphenated)
-- [ ] Implement `GET /api/search?q={query}`: check Tier 1 cache first; on miss call LLM, store results, return candidates
-- [ ] Verify slug stability manually: search 過 twice and confirm identical slugs both times
-- [ ] Build `SearchBar` component: text input, debounced, calls `/api/search`
-- [ ] Render dropdown of candidates showing character + pinyin + sense label
-- [ ] Selecting a candidate navigates to `/word/:pinyin/:slug`
-- [ ] Test with at least 5 real words including one with many senses (過) and one with few (休息)
+- [x] Write the Tier 1 LLM prompt: given a pinyin base, return a JSON array of all matching characters across all tones, each sense as its own object with `character`, `pinyin`, `sense_label`, and `slug` (slug = first 1–2 words of sense_label, lowercased, hyphenated)
+- [x] Implement `GET /api/search?q={query}`: pinyin only; check Tier 1 cache first; on miss call LLM, store results, return candidates
+- [x] Verify slug stability manually: search `guo` twice and confirm identical slugs both times
+- [x] Build `SearchBar` component: pinyin text input, debounced, calls `/api/search`
+- [x] Render dropdown of candidates showing character + pinyin + sense label
+- [x] Selecting a candidate navigates to `/word/:pinyin/:slug`
+- [x] Test with at least 5 real pinyin queries including one with many senses (guo) and one with few (xiuxi)
 
 ---
 
@@ -57,6 +57,22 @@ finish them. Do not skip ahead — each phase builds on the last.
 - [ ] Confirm similar word links resolve correctly even when the linked word is not yet cached (should trigger a fresh Tier 1 + Tier 2 call)
 - [ ] Confirm Regenerate clears the old entry and renders fresh content
 
+---
+### TODOS
+
+## Input validation + error handling
+
+- [ ] Validate search input on the frontend: accept only pinyin (ASCII letters + spaces) or Chinese characters — reject numbers, mixed input, and symbols with an inline error message
+- [ ] Surface backend errors to the user: if the search request fails (network error, 5xx), show a visible error message in the UI rather than silently returning no results
+
+## Character search capability
+
+- [ ] Allow users to search by characters as well as pinyin. This has correctness concerns as the LLM may return different responses based on what we search. We should consider removing the LLM call and using `rust-cedit` library instead
+
+## rust-cedit library integration
+https://github.com/gkbrk/rust-cedict
+
+- [ ] Explore the usage of this library rather than an LLM call. It seems that different definitions that share a common pinyin and tone are separated by a `/` character. We could use this to add links to each definition, rather than using LLM.
 ---
 
 ## Out of scope for MVP (do not implement yet)

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface Candidate {
@@ -10,36 +10,31 @@ interface Candidate {
 
 const API = 'http://localhost:3001';
 
-function useDebounce<T extends unknown[]>(fn: (...args: T) => void, delay: number) {
-  let timer: ReturnType<typeof setTimeout>;
-  return useCallback((...args: T) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  }, [fn, delay]);
-}
-
 export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const isPinyin = (q: string) => /^[a-zA-Z\s]+$/.test(q.trim());
+
   const fetchCandidates = async (q: string) => {
-    if (!q.trim()) { setCandidates([]); return; }
+    if (!q.trim()) return;
+    if (!isPinyin(q)) return;
+    setLoading(true);
     try {
-      const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q.trim())}`);
       const data = await res.json();
       setCandidates(data);
     } catch {
       setCandidates([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const debouncedFetch = useDebounce(fetchCandidates, 300);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-    debouncedFetch(val);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') fetchCandidates(query);
   };
 
   const handleSelect = (c: Candidate) => {
@@ -50,12 +45,22 @@ export default function SearchBar() {
 
   return (
     <div style={{ position: 'relative' }}>
-      <input
-        value={query}
-        onChange={handleChange}
-        placeholder="Search pinyin or character..."
-        style={{ width: '100%', padding: '10px', fontSize: 18, boxSizing: 'border-box' }}
-      />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setCandidates([]); }}
+          onKeyDown={handleKeyDown}
+          placeholder="Search pinyin (e.g. guo)..."
+          style={{ flex: 1, padding: '10px', fontSize: 18, boxSizing: 'border-box' }}
+        />
+        <button
+          onClick={() => fetchCandidates(query)}
+          disabled={!query.trim() || loading}
+          style={{ padding: '10px 20px', fontSize: 18, cursor: 'pointer' }}
+        >
+          {loading ? '…' : 'Search'}
+        </button>
+      </div>
       {candidates.length > 0 && (
         <ul style={{
           position: 'absolute', top: '100%', left: 0, right: 0,
@@ -68,8 +73,7 @@ export default function SearchBar() {
               onClick={() => handleSelect(c)}
               style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
             >
-              <strong>{c.character}</strong> &nbsp;{c.pinyin}&nbsp;
-              <span style={{ color: '#555' }}>— {c.sense_label}</span>
+              <span style={{ color: '#555' }}>{c.character}&nbsp;{c.pinyin}</span>&nbsp;— <strong>{c.sense_label}</strong>
             </li>
           ))}
         </ul>
