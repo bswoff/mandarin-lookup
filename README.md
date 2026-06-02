@@ -26,9 +26,35 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 The CC-CEDICT dictionary file is bundled at `backend/data/cedict.txt` and loaded at startup. To use a different version, set `CEDICT_PATH` in the environment.
 
+## Generating definitions manually
+
+Word pages that haven't been generated yet show a **Generate** button that calls the LLM automatically. Alternatively, you can generate the JSON yourself via Claude and write it directly to the cache — useful for saving API cost.
+
+**1. Get the slug from the word page URL**
+
+Navigate to the word (search → click a definition). The page will show:
+```
+/word/jieshaoo/to-introduce-sb-to-sb
+```
+Note the `{pinyin}` and `{slug}` segments.
+
+**2. Generate the JSON with Claude**
+
+Open [`prompts/word-detail.md`](prompts/word-detail.md), fill in the character and CEDICT definition at the top, and paste the whole thing into Claude. Save the JSON response to a file, e.g. `response.json`.
+
+**3. Write the entry to the cache**
+
+From the repo root:
+```bash
+python3 scripts/cache-import.py <slug> response.json
+# e.g. python3 scripts/cache-import.py to-introduce-sb-to-sb response.json
+```
+
+Reload the word page — it will load instantly from the cache.
+
 ## Clearing the definition cache
 
-To wipe all cached definitions (forces fresh LLM generation on next visit):
+To wipe all cached definitions (forces re-generation on next visit):
 ```bash
 sqlite3 backend/mandarin.db "DELETE FROM definitions;"
 ```
