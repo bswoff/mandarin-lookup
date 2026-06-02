@@ -8,8 +8,9 @@ export default function WordPage() {
   const { pinyin, slug } = useParams<{ pinyin: string; slug: string }>();
   const [data, setData] = useState<WordDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uncached, setUncached] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (!pinyin || !slug) return;
@@ -17,14 +18,21 @@ export default function WordPage() {
 
     setLoading(true);
     setError(null);
+    setUncached(false);
 
     fetch(`${API}/api/word/${pinyin}/${slug}`, { signal: controller.signal })
       .then(res => {
         if (res.status === 404) throw new Error('Word not found — the dictionary entry may not exist.');
         if (!res.ok) throw new Error(`Failed to load definition (${res.status})`);
-        return res.json() as Promise<WordDetailData>;
+        return res.json();
       })
-      .then(json => setData(json))
+      .then(json => {
+        if (json.cached === false) {
+          setUncached(true);
+        } else {
+          setData(json as WordDetailData);
+        }
+      })
       .catch(err => {
         if (err.name === 'AbortError') return;
         setError(err.message ?? 'Could not reach the server');
@@ -34,22 +42,23 @@ export default function WordPage() {
     return () => controller.abort();
   }, [pinyin, slug]);
 
-  const handleRegenerate = async () => {
-    if (!pinyin || !slug || regenerating) return;
-    setRegenerating(true);
+  const handleGenerate = async () => {
+    if (!pinyin || !slug || generating) return;
+    setGenerating(true);
     setError(null);
     try {
       const res = await fetch(`${API}/api/word/${pinyin}/${slug}/regenerate`, { method: 'POST' });
       if (!res.ok) {
-        setError(`Regenerate failed (${res.status})`);
+        setError(`Generation failed (${res.status})`);
         return;
       }
       const json: WordDetailData = await res.json();
       setData(json);
+      setUncached(false);
     } catch {
       setError('Could not reach the server');
     } finally {
-      setRegenerating(false);
+      setGenerating(false);
     }
   };
 
@@ -72,9 +81,37 @@ export default function WordPage() {
         <div style={{ marginTop: 48, color: '#c00', fontSize: 15 }}>{error}</div>
       )}
 
+      {!loading && uncached && !data && (
+        <div style={{ marginTop: 48 }}>
+          <code style={{ fontSize: 13, color: 'var(--text)', opacity: 0.5 }}>
+            /word/{pinyin}/{slug}
+          </code>
+          <p style={{ marginTop: 20, fontSize: 18, color: 'var(--text-h)' }}>
+            Definition not generated
+          </p>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            style={{
+              marginTop: 16,
+              padding: '10px 24px',
+              fontSize: 15,
+              cursor: generating ? 'not-allowed' : 'pointer',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              opacity: generating ? 0.6 : 1,
+            }}
+          >
+            {generating ? 'Generating…' : 'Generate'}
+          </button>
+        </div>
+      )}
+
       {!loading && !error && data && (
         <div style={{ marginTop: 32 }}>
-          <WordDetail data={data} onRegenerate={handleRegenerate} regenerating={regenerating} />
+          <WordDetail data={data} onRegenerate={handleGenerate} regenerating={generating} />
         </div>
       )}
     </main>
