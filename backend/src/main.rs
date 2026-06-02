@@ -1,3 +1,4 @@
+mod cedict;
 mod db;
 mod llm;
 mod routes;
@@ -12,6 +13,7 @@ pub struct AppState {
     pub db: db::Db,
     pub http: reqwest::Client,
     pub api_key: String,
+    pub cedict: cedict::CedictIndex,
 }
 
 #[tokio::main]
@@ -25,11 +27,20 @@ async fn main() -> Result<()> {
     let api_key = std::env::var("ANTHROPIC_API_KEY")
         .expect("ANTHROPIC_API_KEY must be set in .env");
 
+    let cedict_path = std::env::var("CEDICT_PATH")
+        .unwrap_or_else(|_| "data/cedict.txt".to_string());
+    tracing::info!("Loading CEDICT from {cedict_path}");
+    let cedict = cedict::CedictIndex::load(&cedict_path)
+        .expect("Failed to load cedict.txt — run from the backend/ directory");
+
+    tracing::info!("Loading CEDICT finished");
+
     let db = db::Db::open("mandarin.db")?;
     let state = Arc::new(AppState {
         db,
         http: reqwest::Client::new(),
         api_key,
+        cedict,
     });
 
     let cors = CorsLayer::new()

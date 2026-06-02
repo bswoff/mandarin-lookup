@@ -13,28 +13,27 @@ finish them. Do not skip ahead — each phase builds on the last.
 - [x] Scaffold React frontend with Vite + TypeScript + React Router
 - [x] Configure CORS on the backend so the frontend can call it on localhost
 - [x] Confirm the connection: a `/api/health` route returns 200 and the frontend can fetch it
-- [x] Create the SQLite file and run initial migrations for the `senses` and `definitions` tables (schema in SPEC.md)
+- [x] Create the SQLite file and run initial migrations for the `definitions` table (schema in SPEC.md)
 
 ---
 
-## Phase 2 — Search + Tier 1 cache (~2 sessions)
+## Phase 2 — Search (~2 sessions)
 
-- [x] Write the Tier 1 LLM prompt: given a pinyin base, return a JSON array of all matching characters across all tones, each sense as its own object with `character`, `pinyin`, `sense_label`, and `slug` (slug = first 1–2 words of sense_label, lowercased, hyphenated)
-- [x] Implement `GET /api/search?q={query}`: pinyin only; check Tier 1 cache first; on miss call LLM, store results, return candidates
-- [x] Verify slug stability manually: search `guo` twice and confirm identical slugs both times
-- [x] Build `SearchBar` component: pinyin text input, debounced, calls `/api/search`
-- [x] Render dropdown of candidates showing character + pinyin + sense label
-- [x] Selecting a candidate navigates to `/word/:pinyin/:slug`
-- [x] Test with at least 5 real pinyin queries including one with many senses (guo) and one with few (xiuxi)
+- [x] Integrate CC-CEDICT via the `cedict` crate; load `backend/data/cedict.txt` at startup into a `CedictIndex` keyed by normalized pinyin and by character
+- [x] Implement `GET /api/search?q={query}`: accepts pinyin (ASCII) or Chinese characters; queries CEDICT directly (no DB cache); returns entries grouped by character+tone, sorted by definition count descending
+- [x] Build `SearchBar` component: text input, calls `/api/search` on submit, shows error messages for invalid input or network failures
+- [x] Render dropdown grouped by character+tone, with all definitions as inline clickable links separated by ` / `
+- [x] Clicking a definition link navigates to `/word/{pinyin_key}/{slug}` where `pinyin_key` is tone-stripped and `slug` is the full definition text slugified
+- [x] Test with at least 5 real queries including pinyin (`guo`) and Chinese character (`過`)
 
 ---
 
-## Phase 3 — Definition page + Tier 2 cache (~2–3 sessions)
+## Phase 3 — Definition page + definition cache (~2–3 sessions)
 
-- [ ] Write the Tier 2 LLM prompt: given a character and sense_label, return a single JSON object covering all 7 detail sections (see SPEC.md for exact structure). Instruct the model to use Traditional Chinese characters throughout and tone marks (not numbers) on all pinyin
-- [ ] Test the Tier 2 prompt manually against 3–4 words before writing any backend code — iterate until the JSON shape is consistent
-- [ ] Implement `GET /api/word/:character/:slug`: check Tier 2 cache; on miss call LLM, validate JSON, store, return
-- [ ] Implement `POST /api/word/:character/:slug/regenerate`: delete Tier 2 entry, re-call LLM, store and return fresh result
+- [ ] Write the LLM prompt: given a character and definition text from CEDICT, return a single JSON object covering all 7 detail sections (see SPEC.md). Instruct the model to use Traditional Chinese characters throughout and tone marks (not numbers) on all pinyin
+- [ ] Test the prompt manually against 3–4 words before writing any backend code — iterate until the JSON shape is consistent
+- [ ] Implement `GET /api/word/{pinyin}/{slug}`: resolve character by querying CEDICT for the pinyin base and matching the slug; check definition cache; on miss call LLM, validate JSON, store, return
+- [ ] Implement `POST /api/word/{pinyin}/{slug}/regenerate`: delete cache entry, re-call LLM, store and return fresh result
 - [ ] Build `WordDetail` component rendering all 7 sections:
   - [ ] Character + pinyin header
   - [ ] Definition
@@ -54,25 +53,13 @@ finish them. Do not skip ahead — each phase builds on the last.
 - [ ] Handle errors gracefully: bad LLM JSON, network failures, unknown routes
 - [ ] Verify tone marks render correctly throughout (ā á ǎ à not a1 a2 a3 a4)
 - [ ] Manual end-to-end test with 10 real words covering different word classes (verb, noun, particle, measure word)
-- [ ] Confirm similar word links resolve correctly even when the linked word is not yet cached (should trigger a fresh Tier 1 + Tier 2 call)
+- [ ] Confirm similar word links resolve correctly even when the linked word has no cached definition (should trigger a fresh LLM call)
 - [ ] Confirm Regenerate clears the old entry and renders fresh content
 
 ---
-### TODOS
 
-## Input validation + error handling
+## TODOs
 
-- [ ] Validate search input on the frontend: accept only pinyin (ASCII letters + spaces) or Chinese characters — reject numbers, mixed input, and symbols with an inline error message
-- [ ] Surface backend errors to the user: if the search request fails (network error, 5xx), show a visible error message in the UI rather than silently returning no results
-
-## Character search capability
-
-- [ ] Allow users to search by characters as well as pinyin. This has correctness concerns as the LLM may return different responses based on what we search. We should consider removing the LLM call and using `rust-cedit` library instead
-
-## rust-cedit library integration
-https://github.com/gkbrk/rust-cedict
-
-- [ ] Explore the usage of this library rather than an LLM call. It seems that different definitions that share a common pinyin and tone are separated by a `/` character. We could use this to add links to each definition, rather than using LLM.
 ---
 
 ## Out of scope for MVP (do not implement yet)

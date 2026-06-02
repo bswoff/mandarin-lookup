@@ -1,46 +1,76 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-interface Candidate {
-  character: string;
-  pinyin: string;
+interface SearchDefinition {
   sense_label: string;
   slug: string;
 }
 
+interface SearchEntry {
+  character: string;
+  pinyin: string;
+  pinyin_key: string;
+  definitions: SearchDefinition[];
+}
+
 const API = 'http://localhost:3001';
+
+function isValidQuery(q: string): boolean {
+  const t = q.trim();
+  const isPinyin = t.split('').every(c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === ' ');
+  const isChinese = t.split('').every(c => (c >= '一' && c <= '鿿') || (c >= '㐀' && c <= '䶿'));
+  return isPinyin || isChinese;
+}
 
 export default function SearchBar() {
   const [query, setQuery] = useState('');
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [entries, setEntries] = useState<SearchEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const isPinyin = (q: string) => /^[a-zA-Z\s]+$/.test(q.trim());
-
-  const fetchCandidates = async (q: string) => {
+  const fetchEntries = async (q: string) => {
     if (!q.trim()) return;
-    if (!isPinyin(q)) return;
+    if (!isValidQuery(q)) {
+      setError('Please enter pinyin (e.g. guo) or Chinese characters (e.g. 過)');
+      setEntries([]);
+      return;
+    }
+    setError(null);
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q.trim())}`);
-      const data = await res.json();
-      setCandidates(data);
+      if (!res.ok) {
+        setError(`Search failed (${res.status})`);
+        setEntries([]);
+        return;
+      }
+      const data: SearchEntry[] = await res.json();
+      setEntries(data);
+      if (data.length === 0) setError('No results found');
     } catch {
-      setCandidates([]);
+      setError('Could not reach the server');
+      setEntries([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') fetchCandidates(query);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setEntries([]);
+    setError(null);
   };
 
-  const handleSelect = (c: Candidate) => {
-    setCandidates([]);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') fetchEntries(query);
+  };
+
+  const handleSelect = (entry: SearchEntry, def: SearchDefinition) => {
+    setEntries([]);
     setQuery('');
-    navigate(`/word/${c.pinyin}/${c.slug}`);
+    setError(null);
+    navigate(`/word/${entry.pinyin_key}/${def.slug}`);
   };
 
   return (
@@ -48,32 +78,48 @@ export default function SearchBar() {
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setCandidates([]); }}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Search pinyin (e.g. guo)..."
+          placeholder="Search pinyin or character (e.g. guo or 過)..."
           style={{ flex: 1, padding: '10px', fontSize: 18, boxSizing: 'border-box' }}
         />
         <button
-          onClick={() => fetchCandidates(query)}
+          onClick={() => fetchEntries(query)}
           disabled={!query.trim() || loading}
           style={{ padding: '10px 20px', fontSize: 18, cursor: 'pointer' }}
         >
           {loading ? '…' : 'Search'}
         </button>
       </div>
-      {candidates.length > 0 && (
+      {error && (
+        <p style={{ margin: '6px 0 0', color: '#c00', fontSize: 14 }}>{error}</p>
+      )}
+      {entries.length > 0 && (
         <ul style={{
           position: 'absolute', top: '100%', left: 0, right: 0,
           background: '#fff', border: '1px solid #ccc', listStyle: 'none',
-          margin: 0, padding: 0, zIndex: 10,
+          margin: 0, padding: 0, zIndex: 10, maxHeight: 400, overflowY: 'auto',
         }}>
-          {candidates.map((c) => (
+          {entries.map((entry) => (
             <li
-              key={`${c.character}-${c.slug}`}
-              onClick={() => handleSelect(c)}
-              style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+              key={`${entry.character}-${entry.pinyin}`}
+              style={{ padding: '10px 12px', borderBottom: '1px solid #eee', lineHeight: 1.6 }}
             >
-              <span style={{ color: '#555' }}>{c.character}&nbsp;{c.pinyin}</span>&nbsp;— <strong>{c.sense_label}</strong>
+              <span style={{ fontWeight: 600 }}>
+                {entry.character}&nbsp;{entry.pinyin}
+              </span>
+              {' — '}
+              {entry.definitions.map((def, i) => (
+                <span key={def.slug}>
+                  <span
+                    onClick={() => handleSelect(entry, def)}
+                    style={{ cursor: 'pointer', color: '#0066cc', textDecoration: 'underline' }}
+                  >
+                    {def.sense_label}
+                  </span>
+                  {i < entry.definitions.length - 1 && ' / '}
+                </span>
+              ))}
             </li>
           ))}
         </ul>
