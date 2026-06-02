@@ -26,12 +26,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 The CC-CEDICT dictionary file is bundled at `backend/data/cedict.txt` and loaded at startup. To use a different version, set `CEDICT_PATH` in the environment.
 
-## Known limitations
+## Clearing the definition cache
 
-**Definition pages not yet implemented**
-Clicking a definition navigates to a detail page, but the backend endpoint is not yet wired up (Phase 3).
-
-**Clearing the definition cache**
+To wipe all cached definitions (forces fresh LLM generation on next visit):
 ```bash
 sqlite3 backend/mandarin.db "DELETE FROM definitions;"
 ```
+
+Individual entries can also be regenerated in-app via the **Regenerate** button on any definition page.

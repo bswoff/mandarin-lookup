@@ -17,7 +17,7 @@ finish them. Do not skip ahead — each phase builds on the last.
 
 ---
 
-## Phase 2 — Search (~2 sessions)
+## Phase 2 — Search (~2 sessions) [deprecated, decided to go with CEDICT impelemntation instead]
 
 - [x] Integrate CC-CEDICT via the `cedict` crate; load `backend/data/cedict.txt` at startup into a `CedictIndex` keyed by normalized pinyin and by character
 - [x] Implement `GET /api/search?q={query}`: accepts pinyin (ASCII) or Chinese characters; queries CEDICT directly (no DB cache); returns entries grouped by character+tone, sorted by definition count descending
@@ -30,20 +30,20 @@ finish them. Do not skip ahead — each phase builds on the last.
 
 ## Phase 3 — Definition page + definition cache (~2–3 sessions)
 
-- [ ] Write the LLM prompt: given a character and definition text from CEDICT, return a single JSON object covering all 7 detail sections (see SPEC.md). Instruct the model to use Traditional Chinese characters throughout and tone marks (not numbers) on all pinyin
-- [ ] Test the prompt manually against 3–4 words before writing any backend code — iterate until the JSON shape is consistent
-- [ ] Implement `GET /api/word/{pinyin}/{slug}`: resolve character by querying CEDICT for the pinyin base and matching the slug; check definition cache; on miss call LLM, validate JSON, store, return
-- [ ] Implement `POST /api/word/{pinyin}/{slug}/regenerate`: delete cache entry, re-call LLM, store and return fresh result
-- [ ] Build `WordDetail` component rendering all 7 sections:
-  - [ ] Character + pinyin header
-  - [ ] Definition
-  - [ ] Usage summary
-  - [ ] Grammar pairings table (pairing | notes | example sentence)
-  - [ ] Example sentences (character → pinyin → English)
-  - [ ] Common mistakes
-  - [ ] Similar words as router links to their own detail pages
-- [ ] Add a Regenerate button that calls the regenerate endpoint and updates the page in place
-- [ ] Wire React Router: `/` → search page, `/word/:pinyin/:slug` → detail page
+- [x] Write the LLM prompt: given a character and definition text from CEDICT, return a single JSON object covering all 7 detail sections (see SPEC.md). Instruct the model to use Traditional Chinese characters throughout and tone marks (not numbers) on all pinyin
+- [x] Test the prompt manually against 3–4 words before writing any backend code — iterate until the JSON shape is consistent
+- [x] Implement `GET /api/word/{pinyin}/{slug}`: resolve character by querying CEDICT for the pinyin base and matching the slug; check definition cache; on miss call LLM, validate JSON, store, return
+- [x] Implement `POST /api/word/{pinyin}/{slug}/regenerate`: delete cache entry, re-call LLM, store and return fresh result
+- [x] Build `WordDetail` component rendering all 7 sections:
+  - [x] Character + pinyin header
+  - [x] Definition
+  - [x] Usage summary
+  - [x] Grammar pairings table (pairing | notes | example sentence | pinyin | English)
+  - [x] Example sentences (character → pinyin → English)
+  - [x] Common mistakes
+  - [x] Similar words link back to search page pre-filled with the character
+- [x] Add a Regenerate button that calls the regenerate endpoint and updates the page in place
+- [x] Wire React Router: `/` → search page, `/word/:pinyin/:slug` → detail page
 
 ---
 
