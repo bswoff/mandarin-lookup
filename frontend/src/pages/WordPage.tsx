@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import WordDetail, { type WordDetailData } from '../components/WordDetail';
 
@@ -11,32 +11,28 @@ export default function WordPage() {
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
-  const fetchWord = useCallback(async () => {
+  useEffect(() => {
     if (!pinyin || !slug) return;
+    const controller = new AbortController();
+
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`${API}/api/word/${pinyin}/${slug}`);
-      if (res.status === 404) {
-        setError('Word not found — the dictionary entry may not exist.');
-        return;
-      }
-      if (!res.ok) {
-        setError(`Failed to load definition (${res.status})`);
-        return;
-      }
-      const json: WordDetailData = await res.json();
-      setData(json);
-    } catch {
-      setError('Could not reach the server');
-    } finally {
-      setLoading(false);
-    }
-  }, [pinyin, slug]);
 
-  useEffect(() => {
-    fetchWord();
-  }, [fetchWord]);
+    fetch(`${API}/api/word/${pinyin}/${slug}`, { signal: controller.signal })
+      .then(res => {
+        if (res.status === 404) throw new Error('Word not found — the dictionary entry may not exist.');
+        if (!res.ok) throw new Error(`Failed to load definition (${res.status})`);
+        return res.json() as Promise<WordDetailData>;
+      })
+      .then(json => setData(json))
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        setError(err.message ?? 'Could not reach the server');
+      })
+      .finally(() => setLoading(false));
+
+    return () => controller.abort();
+  }, [pinyin, slug]);
 
   const handleRegenerate = async () => {
     if (!pinyin || !slug || regenerating) return;
