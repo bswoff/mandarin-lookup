@@ -87,13 +87,13 @@ impl CedictIndex {
     }
 
     /// Given a pinyin_key (e.g. "guo") and a slug (e.g. "to-cross"), returns the
-    /// matching (traditional character, definition text) pair from CEDICT, or None.
-    pub fn resolve_entry(&self, pinyin_key: &str, slug: &str) -> Option<(String, String)> {
+    /// matching (traditional character, definition text, pinyin_display) triple from CEDICT, or None.
+    pub fn resolve_entry(&self, pinyin_key: &str, slug: &str) -> Option<(String, String, String)> {
         let entries = self.by_pinyin.get(pinyin_key)?;
         for entry in entries {
             for def in &entry.definitions {
                 if make_slug(def) == slug {
-                    return Some((entry.traditional.clone(), def.clone()));
+                    return Some((entry.traditional.clone(), def.clone(), entry.pinyin_display.clone()));
                 }
             }
         }

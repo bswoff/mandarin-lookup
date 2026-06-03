@@ -111,7 +111,6 @@ Return ONLY a raw JSON object (no markdown fences, no explanation) with exactly 
 
 {{
   "character": "<Traditional Chinese characters>",
-  "pinyin": "<pinyin with tone marks, e.g. guò — never tone numbers like guo4>",
   "definition": "<the specific sense from the CEDICT definition, stated clearly>",
   "usage_summary": "<1 paragraph on what this word conveys in this sense, its register (formal/colloquial/written/slang), and common contexts>",
   "grammar_pairings": [

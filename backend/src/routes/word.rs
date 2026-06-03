@@ -12,16 +12,17 @@ pub async fn get_word(
     State(state): State<Arc<AppState>>,
     Path((pinyin, slug)): Path<(String, String)>,
 ) -> Result<Json<Value>, StatusCode> {
-    let (character, _) = state
+    let (character, _, pinyin_display) = state
         .cedict
         .resolve_entry(&pinyin, &slug)
         .ok_or(StatusCode::NOT_FOUND)?;
 
     if let Some(cached) = state.db.get_definition(&character, &slug) {
-        let value: Value = serde_json::from_str(&cached).map_err(|e| {
+        let mut value: Value = serde_json::from_str(&cached).map_err(|e| {
             tracing::error!("Failed to parse cached JSON for ({}, {}): {}", character, slug, e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+        value["pinyin"] = Value::String(pinyin_display);
         return Ok(Json(value));
     }
 
@@ -33,7 +34,7 @@ pub async fn regenerate(
     State(state): State<Arc<AppState>>,
     Path((pinyin, slug)): Path<(String, String)>,
 ) -> Result<Json<Value>, StatusCode> {
-    let (character, definition_text) = state
+    let (character, definition_text, pinyin_display) = state
         .cedict
         .resolve_entry(&pinyin, &slug)
         .ok_or(StatusCode::NOT_FOUND)?;
@@ -44,12 +45,13 @@ pub async fn regenerate(
     })?;
 
     tracing::info!(character = %character, slug = %slug, "regenerating — calling LLM");
-    let detail = llm::generate_word_detail(&state.http, &state.api_key, &character, &definition_text)
+    let mut detail = llm::generate_word_detail(&state.http, &state.api_key, &character, &definition_text)
         .await
         .map_err(|e| {
             tracing::error!("LLM error for ({}, {}): {}", character, slug, e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+    detail.pinyin = pinyin_display;
 
     let json_str = serde_json::to_string(&detail).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     state.db.set_definition(&character, &slug, &json_str).map_err(|e| {
