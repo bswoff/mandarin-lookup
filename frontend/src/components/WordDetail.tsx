@@ -62,8 +62,25 @@ export default function WordDetail({ data, onRegenerate, regenerating }: Props) 
           <div style={{ fontSize: 72, lineHeight: 1, color: 'var(--text-h)', fontWeight: 400 }}>
             {data.character}
           </div>
-          <div style={{ fontSize: 22, color: 'var(--accent)', marginTop: 6, letterSpacing: '0.04em' }}>
-            {data.pinyin}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+            <div style={{ fontSize: 22, color: 'var(--accent)', letterSpacing: '0.04em' }}>
+              {data.pinyin}
+            </div>
+            <a
+              href={`https://youglish.com/pronounce/${encodeURIComponent(data.character)}/chinese`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Hear pronunciation on YouGlish"
+              style={{
+                fontSize: 20,
+                opacity: 0.7,
+                lineHeight: 1,
+                color: 'var(--text)',
+                textDecoration: 'none',
+              }}
+            >
+              🔊
+            </a>
           </div>
         </div>
         <button
