@@ -1,8 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import WordDetail, { type WordDetailData } from '../components/WordDetail';
+import JsonEditorModal from '../components/JsonEditorModal';
 
 const API = 'http://localhost:3001';
+
+const INSERT_TEMPLATE = JSON.stringify(
+  {
+    character: '',
+    pinyin: '',
+    definition: '',
+    usage_summary: '',
+    grammar_pairings: [],
+    example_sentences: [],
+    common_mistakes: [],
+    similar_words: [],
+  },
+  null,
+  2,
+);
 
 export default function WordPage() {
   const { pinyin, slug } = useParams<{ pinyin: string; slug: string }>();
@@ -11,6 +27,7 @@ export default function WordPage() {
   const [uncached, setUncached] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [modalMode, setModalMode] = useState<'modify' | 'insert' | null>(null);
 
   useEffect(() => {
     if (!pinyin || !slug) return;
@@ -62,6 +79,19 @@ export default function WordPage() {
     }
   };
 
+  const handleSaveJson = async (jsonStr: string) => {
+    const res = await fetch(`${API}/api/word/${pinyin}/${slug}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: jsonStr,
+    });
+    if (!res.ok) throw new Error(`Save failed (${res.status})`);
+    const json: WordDetailData = await res.json();
+    setData(json);
+    setUncached(false);
+    setModalMode(null);
+  };
+
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px 80px' }}>
       <Link
@@ -89,30 +119,59 @@ export default function WordPage() {
           <p style={{ marginTop: 20, fontSize: 18, color: 'var(--text-h)' }}>
             Definition not generated
           </p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            style={{
-              marginTop: 16,
-              padding: '10px 24px',
-              fontSize: 15,
-              cursor: generating ? 'not-allowed' : 'pointer',
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              opacity: generating ? 0.6 : 1,
-            }}
-          >
-            {generating ? 'Generating…' : 'Generate'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              style={{
+                padding: '10px 24px',
+                fontSize: 15,
+                cursor: generating ? 'not-allowed' : 'pointer',
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                opacity: generating ? 0.6 : 1,
+              }}
+            >
+              {generating ? 'Generating…' : 'Generate'}
+            </button>
+            <button
+              onClick={() => setModalMode('insert')}
+              style={{
+                padding: '10px 24px',
+                fontSize: 15,
+                cursor: 'pointer',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                color: 'var(--text)',
+              }}
+            >
+              Import JSON
+            </button>
+          </div>
         </div>
       )}
 
       {!loading && !error && data && (
         <div style={{ marginTop: 32 }}>
-          <WordDetail data={data} onRegenerate={handleGenerate} regenerating={generating} />
+          <WordDetail
+            data={data}
+            onRegenerate={handleGenerate}
+            regenerating={generating}
+            onModify={() => setModalMode('modify')}
+          />
         </div>
+      )}
+
+      {modalMode && (
+        <JsonEditorModal
+          title={modalMode === 'modify' ? 'Modify JSON' : 'Import JSON'}
+          initialJson={modalMode === 'modify' ? JSON.stringify(data, null, 2) : INSERT_TEMPLATE}
+          onSave={handleSaveJson}
+          onClose={() => setModalMode(null)}
+        />
       )}
     </main>
   );

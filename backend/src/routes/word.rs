@@ -8,6 +8,29 @@ use std::sync::Arc;
 
 use crate::{llm, AppState};
 
+pub async fn upsert_definition(
+    State(state): State<Arc<AppState>>,
+    Path((pinyin, slug)): Path<(String, String)>,
+    Json(mut body): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let (character, _, pinyin_display) = state
+        .cedict
+        .resolve_entry(&pinyin, &slug)
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    body["character"] = Value::String(character.clone());
+    body["pinyin"] = Value::String(pinyin_display);
+
+    let json_str = serde_json::to_string(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    state.db.set_definition(&character, &slug, &json_str).map_err(|e| {
+        tracing::error!("DB write error for ({}, {}): {}", character, slug, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!(character = %character, slug = %slug, "definition upserted manually");
+    Ok(Json(body))
+}
+
 pub async fn get_word(
     State(state): State<Arc<AppState>>,
     Path((pinyin, slug)): Path<(String, String)>,

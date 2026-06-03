@@ -51,7 +51,10 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/api/health", get(routes::health::health))
         .route("/api/search", get(routes::search::search))
-        .route("/api/word/{pinyin}/{slug}", get(routes::word::get_word))
+        .route(
+            "/api/word/{pinyin}/{slug}",
+            get(routes::word::get_word).put(routes::word::upsert_definition),
+        )
         .route(
             "/api/word/{pinyin}/{slug}/regenerate",
             axum::routing::post(routes::word::regenerate),

@@ -51,9 +51,10 @@ interface Props {
   data: WordDetailData;
   onRegenerate: () => void;
   regenerating: boolean;
+  onModify: () => void;
 }
 
-export default function WordDetail({ data, onRegenerate, regenerating }: Props) {
+export default function WordDetail({ data, onRegenerate, regenerating, onModify }: Props) {
   return (
     <div>
       {/* Header: character, pinyin, regenerate */}
@@ -83,23 +84,38 @@ export default function WordDetail({ data, onRegenerate, regenerating }: Props) 
             </a>
           </div>
         </div>
-        <button
-          onClick={onRegenerate}
-          disabled={regenerating}
-          style={{
-            marginTop: 8,
-            padding: '8px 16px',
-            fontSize: 14,
-            cursor: regenerating ? 'not-allowed' : 'pointer',
-            background: 'transparent',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            color: 'var(--text)',
-            opacity: regenerating ? 0.5 : 1,
-          }}
-        >
-          {regenerating ? 'Regenerating…' : 'Regenerate'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            onClick={onModify}
+            style={{
+              padding: '8px 16px',
+              fontSize: 14,
+              cursor: 'pointer',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              color: 'var(--text)',
+            }}
+          >
+            Modify JSON
+          </button>
+          <button
+            onClick={onRegenerate}
+            disabled={regenerating}
+            style={{
+              padding: '8px 16px',
+              fontSize: 14,
+              cursor: regenerating ? 'not-allowed' : 'pointer',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              color: 'var(--text)',
+              opacity: regenerating ? 0.5 : 1,
+            }}
+          >
+            {regenerating ? 'Regenerating…' : 'Regenerate'}
+          </button>
+        </div>
       </div>
 
       {/* Section 2: Definition */}
