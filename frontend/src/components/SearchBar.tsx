@@ -42,7 +42,7 @@ export default function SearchBar() {
   const fetchEntries = async (q: string) => {
     if (!q.trim()) return;
     if (!isValidQuery(q)) {
-      setError('Please enter pinyin (e.g. guo) or Chinese characters (e.g. 過)');
+      setError('Please enter pinyin (e.g guo), English (e.g. to pass), or Chinese characters (e.g. 過)');
       setEntries([]);
       return;
     }
@@ -90,7 +90,7 @@ export default function SearchBar() {
           value={query}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Search pinyin or character (e.g. guo or 過)..."
+          placeholder="Search pinyin, English, or character (e.g. guo, to pass, 過)..."
           style={{ flex: 1, padding: '10px', fontSize: 18, boxSizing: 'border-box' }}
         />
         <button

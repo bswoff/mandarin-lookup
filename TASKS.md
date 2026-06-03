@@ -60,6 +60,20 @@ finish them. Do not skip ahead — each phase builds on the last.
 
 ## TODOs
 
+### Explore word vectorization for more accurate English search queries
+
+Currently English search uses keyword matching with a definition-position ranking heuristic.
+Vectorization would allow semantic matching — e.g. searching "slow" surfaces 慢 over 蹇
+because "slow" as speed is semantically closer to 慢's meaning than 蹇's primary meaning of
+lame/crippled, even though both have "slow" as a valid definition.
+
+- [ ] Evaluate embedding model options: local (e.g. `fastembed`, `candle` in Rust) vs API-based (OpenAI `text-embedding-3-small`)
+- [ ] Build a one-time offline script that runs all CEDICT definitions through the chosen model and serializes the resulting vectors to a file (e.g. `backend/data/cedict_embeddings.bin`)
+- [ ] At startup, load the vector index from file alongside `cedict.txt` (same pattern as today)
+- [ ] On English query, embed the query string and run a nearest-neighbor search against the index; return top-N results ranked by cosine similarity
+- [ ] Compare result quality against the current keyword approach on a set of test queries (e.g. "slow", "angry", "to apologize", "drunk")
+- [ ] Decide whether to replace keyword search or layer it on top (e.g. vector search for ranking, keyword for filtering)
+
 ---
 
 ## Out of scope for MVP (do not implement yet)

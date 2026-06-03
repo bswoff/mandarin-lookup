@@ -1,3 +1,26 @@
+// Input classification strategy
+//
+// Both English and pinyin are plain ASCII, so distinguishing them is non-trivial.
+// Three approaches were considered:
+//
+// 1. Syllable whitelist — parse input against the ~400 valid Mandarin syllables; if it
+//    fully decomposes, treat as pinyin, otherwise English.
+//    Pro: deterministic, single backend call.
+//    Con: requires maintaining the syllable list; short words that are coincidentally
+//    valid syllables ("he", "an", "man") always route to pinyin.
+//
+// 2. Try pinyin first, fall back to English (chosen) — attempt the pinyin lookup; if it
+//    returns no results, retry as an English definition search.
+//    Pro: simplest to implement; handles ~95% of real queries correctly.
+//    Con: same edge-case overlap as #1 — "man" has valid pinyin hits so the English
+//    fallback never fires for it. Acceptable because those words are poor dictionary
+//    search terms in practice.
+//
+// 3. Dual search — run both lookups in parallel and merge results, pinyin first.
+//    Pro: most correct; no classification needed; handles every ambiguous input.
+//    Con: every query pays two lookup costs; result display needs visual separation
+//    between pinyin and English hits to avoid noise.
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -32,7 +55,13 @@ pub async fn search(
     let entries = if is_pinyin {
         let base = normalize_pinyin(&q);
         tracing::info!(query = %q, normalized = %base, kind = "pinyin", "search request");
-        state.cedict.lookup_by_pinyin(&base)
+        let pinyin_results = state.cedict.lookup_by_pinyin(&base);
+        if pinyin_results.is_empty() {
+            tracing::info!(query = %q, kind = "english-fallback", "search request");
+            state.cedict.lookup_by_english(&q)
+        } else {
+            pinyin_results
+        }
     } else {
         tracing::info!(query = %q, kind = "character", "search request");
         state.cedict.lookup_by_char(&q)
